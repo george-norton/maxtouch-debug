@@ -1,7 +1,7 @@
 
 <template>
     <div class="card">
-        <TreeTable :value="nodes" >
+        <TreeTable :value="nodes" size="small">
             <Column field="name" header="Name" expander filter></Column>
             <Column field="value" header="Value">
                 <template #body="{ node, column}">

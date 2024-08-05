@@ -56,7 +56,10 @@ fn check_version(connection: &ConnectionState) -> Result<(), String> {
             data[4] = 0x00; // Version
             data[5] = 0x01; // Version
 
-            device.write(&data).expect("Failed to write to the device");
+            match device.write(&data) {
+                Ok(_) => {},
+                Err(_) => { return Err(format!("Failed to write to the device.")); }
+            }
             match device.read_timeout(&mut data, 1000) {
                 Ok(size) => {
                     if size > 0 && data[0] == MaxTouchStatus::OK as u8 {
@@ -129,7 +132,10 @@ fn write_data(connection: &ConnectionState, address: u16, data: &[u8]) -> Result
                 packet[4] = write_length as u8;                         // Length
                 packet[5..(5 + write_length)].clone_from_slice(&data[offset..(offset + write_length)]);
 
-                device.write(&packet).expect("Failed to write to the device");
+                match device.write(&packet) {
+                    Ok(_) => {},
+                    Err(_) => { return Err(format!("Failed to write to the device.")); }
+                }
                 match device.read_timeout(&mut packet, 1000) {
                     Ok(size) => {
                         if size > 0 && packet[0] != MaxTouchStatus::OK as u8 {
@@ -157,67 +163,52 @@ fn write_object(connection: &ConnectionState, id: u8, data: &[u8]) -> Result<(),
 }
 
 #[tauri::command]
-fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8) -> Response {
+fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8) -> Result<Response, String> {
     let connection = connection_state.lock();
-    match &connection.device {
-        Some(device) => {
-            let mut img = RgbImage::new(connection.sensor_size[0] as u32, connection.sensor_size[1] as u32);
-            let mut encoded_image = Vec::new();
+    let mut img = RgbImage::new(connection.sensor_size[0] as u32, connection.sensor_size[1] as u32);
+    let mut encoded_image = Vec::new();
 
-            let mut t6: T6CommandProcessor = FromZeroes::new_zeroed();
-            t6.diagnostic = mode;
-            write_object(&connection, 6, t6.as_bytes());
-            t6.diagnostic = 1; // Next page
+    let mut t6: T6CommandProcessor = FromZeroes::new_zeroed();
+    t6.diagnostic = mode;
+    write_object(&connection, 6, t6.as_bytes())?;
+    t6.diagnostic = 1; // Next page
 
-            let sensor_nodes = (connection.sensor_size[0] as u16 * connection.sensor_size[1] as u16);
-            let pages = ((sensor_nodes * 2) as f32 / 128.0).ceil() as u8;
+    let sensor_nodes = connection.sensor_size[0] as u16 * connection.sensor_size[1] as u16;
+    let pages = ((sensor_nodes * 2) as f32 / 128.0).ceil() as u8;
 
-            for page in 0..pages {
-                let mut data = read_object(&connection, 37).expect("Failed to read debug object");
-                if data[0] != 37 && data[1] != page {
-                    // Retry if the page hasnt updated
-                    data = read_object(&connection, 37).expect("Failed to read debug object");
+    for page in 0..pages {
+        let mut data = read_object(&connection, 37)?;
+        if data[0] != 37 && data[1] != page {
+            // Retry if the page hasnt updated
+            data = read_object(&connection, 37)?;
+        }
+        if page != pages - 1 {
+            write_object(&connection, 6, t6.as_bytes())?;
+        }
+        for index in (0..128).step_by(2) {
+            let full_index = ((page as u32 * 128) + index) / 2;
+            if full_index < sensor_nodes as u32 {
+                let x = full_index / (connection.sensor_size[1] as u32);
+                let y = full_index % (connection.sensor_size[1] as u32);
+
+                let sample = i16::from_le_bytes(data[(index + 2) as usize .. (index + 4) as usize].try_into().unwrap());
+                if sample < 0 {
+                    let value = 255 - (-sample / 3) as u8;
+                    img.put_pixel(x, y, Rgb([255, value, value]));
                 }
-                if page != pages - 1 {
-                    write_object(&connection, 6, t6.as_bytes());
-                }
-                for index in (0..128).step_by(2) {
-                    let full_index = ((page as u32 * 128) + index) / 2;
-                    if full_index < sensor_nodes as u32 {
-                        let x = full_index / (connection.sensor_size[1] as u32);
-                        let y = full_index % (connection.sensor_size[1] as u32);
-
-                        let sample = i16::from_le_bytes(data[(index + 2) as usize .. (index + 4) as usize].try_into().unwrap());
-                        if sample < 0 {
-                            let value = 255 - (-sample / 3) as u8;
-                            img.put_pixel(x, y, Rgb([255, value, value]));
-                        }
-                        else {
-                            let value = 255 - ((sample / 3) & 0xFF) as u8;
-                            img.put_pixel(x, y, Rgb([value, value, 255]));
-                        }
-                    }
+                else {
+                    let value = 255 - ((sample / 3) & 0xFF) as u8;
+                    img.put_pixel(x, y, Rgb([value, value, 255]));
                 }
             }
-
-            let encoder = PngEncoder::new(&mut encoded_image);
-            encoder
-                .write_image(&img, connection.sensor_size[0] as u32, connection.sensor_size[1] as u32, image::ExtendedColorType::Rgb8)
-                .unwrap();
-            Response::new(encoded_image)
-        }
-        _ => {
-            // Not connected, send a single pixel image
-            let mut img = RgbImage::new(1, 1);
-            let mut encoded_image = Vec::new();
-            img.put_pixel(0, 0, Rgb([255, 255, 255]));
-            let encoder = PngEncoder::new(&mut encoded_image);
-            encoder
-                .write_image(&img, 1, 1, image::ExtendedColorType::Rgb8)
-                .unwrap();
-            Response::new(encoded_image)
         }
     }
+
+    let encoder = PngEncoder::new(&mut encoded_image);
+    encoder
+        .write_image(&img, connection.sensor_size[0] as u32, connection.sensor_size[1] as u32, image::ExtendedColorType::Rgb8)
+        .unwrap();
+    Ok(Response::new(encoded_image))
 }
 
 #[tauri::command]

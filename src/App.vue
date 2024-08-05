@@ -38,6 +38,7 @@ import RegisterMap from "./components/RegisterMap.vue";
 }
 
 .container {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   position: fixed;
   width: 100%;
   height: 100%;
