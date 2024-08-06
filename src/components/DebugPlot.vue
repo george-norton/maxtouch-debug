@@ -37,8 +37,8 @@
             high_limit = 10200;
           }
         }
-        invoke("get_debug_image", { mode: debug_mode, low: low_limit, high: high_limit })
-          .then((data: ArrayBuffer) => {
+        (invoke("get_debug_image", { mode: debug_mode, low: low_limit, high: high_limit }) as Promise<ArrayBuffer>)
+          .then((data) => {
             let imgData = new Blob([data], { type: 'application/octet-binary' });
             let link = URL.createObjectURL(imgData);
             const img = document.getElementById('img');
