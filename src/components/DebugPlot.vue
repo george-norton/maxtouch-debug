@@ -6,6 +6,7 @@
   { name: "Mutual Capacitance Reference Values", value: 17 }]);
   const mode = ref(modes.value[0]);
   const connected = ref(false);
+  const info_block = ref();
 
   onMounted(() => {
     connect();
@@ -18,10 +19,25 @@
 
   // TODO: The device connection should not be owned by the debug plot. Other components also need to share it.
   function connect() {
-    invoke("connect").then(() => {
+    invoke("connect").then((info) => {
       connected.value = true;
+      info_block.value = info;
       timer.value = setInterval(function () {
-        invoke("get_debug_image", { mode: mode.value.value })
+        const debug_mode = mode.value.value;
+        var low_limit = -128;
+        var high_limit = 500;
+        if (debug_mode == 17) {
+          // The 1066 and 336 sensors have different signal limit ranges.
+          if (info_block.value.family_id === 164) {
+            low_limit = 23500;
+            high_limit = 26000;
+          }
+          else {
+            low_limit = 6800;
+            high_limit = 10200;
+          }
+        }
+        invoke("get_debug_image", { mode: debug_mode, low: low_limit, high: high_limit })
           .then((data: ArrayBuffer) => {
             let imgData = new Blob([data], { type: 'application/octet-binary' });
             let link = URL.createObjectURL(imgData);
@@ -33,6 +49,7 @@
             }
           })
           .catch((e) => {
+            console.log(e);
             connected.value = false;
 
             // If an error occured, try to connect to a device in 1 second
@@ -44,6 +61,7 @@
           });
       }, 750);
     }).catch((e) => {
+      console.log(e);
       connected.value = false;
       // If we failed to connect, try again in 1 second
       setTimeout(connect, 1000);

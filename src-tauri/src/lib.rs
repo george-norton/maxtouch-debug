@@ -163,7 +163,7 @@ fn write_object(connection: &ConnectionState, id: u8, data: &[u8]) -> Result<(),
 }
 
 #[tauri::command]
-fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8) -> Result<Response, String> {
+fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, low: i16, high: i16) -> Result<Response, String> {
     let connection = connection_state.lock();
     let mut img = RgbImage::new(connection.sensor_size[0] as u32, connection.sensor_size[1] as u32);
     let mut encoded_image = Vec::new();
@@ -175,7 +175,8 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8) ->
 
     let sensor_nodes = connection.sensor_size[0] as u16 * connection.sensor_size[1] as u16;
     let pages = ((sensor_nodes * 2) as f32 / 128.0).ceil() as u8;
-
+    let mut min_sample = i16::MAX;
+    let mut max_sample = i16::MIN;
     for page in 0..pages {
         let mut data = read_object(&connection, 37)?;
         if data[0] != 37 && data[1] != page {
@@ -192,17 +193,40 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8) ->
                 let y = full_index % (connection.sensor_size[1] as u32);
 
                 let sample = i16::from_le_bytes(data[(index + 2) as usize .. (index + 4) as usize].try_into().unwrap());
-                if sample < 0 {
-                    let value = 255 - (-sample / 3) as u8;
+                min_sample = cmp::min(min_sample, sample);
+                max_sample = cmp::max(max_sample, sample);
+
+                let mut normalized_sample : f32;
+                if low < 0 {
+                    // If the low-high range goes negative, generate a normalized
+                    // value in the range -1..1.
+                    let range = cmp::max(-low, high);
+                    normalized_sample = (sample as f32 / range as f32).clamp(-1.0, 1.0);
+                }
+                else {
+                    normalized_sample = ((sample - low) as f32 / (high - low) as f32).clamp(0.0, 1.0);
+                }
+
+                if normalized_sample < 0.0 {
+                    let value = 255 - (-255.0 * normalized_sample) as u8;
                     img.put_pixel(x, y, Rgb([255, value, value]));
                 }
                 else {
-                    let value = 255 - ((sample / 3) & 0xFF) as u8;
+                    let value = 255 - (255.0 * normalized_sample) as u8;
                     img.put_pixel(x, y, Rgb([value, value, 255]));
                 }
             }
         }
     }
+    // TODO: I would like to display this in the UI, but how do we return
+    // an image and some json?
+    /*if min_sample < low {
+        println!("Sample was out of range {} < {}", min_sample, low); 
+    }
+    if max_sample > high {
+        println!("Sample was out of range {} > {}", max_sample, high); 
+    }*/
+    println!("Sample range {} .. {}", min_sample, max_sample); 
 
     let encoder = PngEncoder::new(&mut encoded_image);
     encoder
