@@ -226,7 +226,6 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
     if max_sample > high {
         println!("Sample was out of range {} > {}", max_sample, high); 
     }*/
-    println!("Sample range {} .. {}", min_sample, max_sample); 
 
     let encoder = PngEncoder::new(&mut encoded_image);
     encoder

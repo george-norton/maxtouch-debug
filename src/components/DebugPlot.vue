@@ -25,7 +25,7 @@
       timer.value = setInterval(function () {
         const debug_mode = mode.value.value;
         var low_limit = -128;
-        var high_limit = 500;
+        var high_limit = 700;
         if (debug_mode == 17) {
           // The 1066 and 336 sensors have different signal limit ranges.
           if (info_block.value.family_id === 164) {
