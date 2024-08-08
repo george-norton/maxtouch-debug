@@ -1,6 +1,6 @@
 {
   "productName": "maxtouch-debug",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "identifier": "maxtouch.debug",
   "build": {
     "beforeDevCommand": "yarn dev",
