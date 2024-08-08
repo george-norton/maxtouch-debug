@@ -1,6 +1,8 @@
 extern crate hidapi;
 use hidapi::{HidApi, HidDevice};
-use maxtouch::{InformationBlock, ObjectTableElement, T6CommandProcessor};
+use maxtouch::{InformationBlock, ObjectTableElement, T6CommandProcessor,
+    T7PowerConfig, T8AcquisitionConfig, T42TouchSupression, T46CteConfig,
+    T47ProciStylus, T80RetransmissionCompensation, T100MultipleTouchTouchscreen};
 use parking_lot::Mutex;
 use std::{cmp, mem};
 use std::collections::HashMap;
@@ -9,6 +11,7 @@ use tauri::State;
 use zerocopy::{FromBytes, FromZeroes, AsBytes};
 use tauri::ipc::Response;
 use image::{codecs::png::PngEncoder, Rgb, RgbImage, ImageEncoder};
+use serde::{Deserialize, Serialize};
 
 mod maxtouch;
 
@@ -154,12 +157,73 @@ fn write_data(connection: &ConnectionState, address: u16, data: &[u8]) -> Result
     }
 }
 
-fn read_object(connection: &ConnectionState, id: u8) -> Result<Vec<u8>, String> {
-    read_data(connection, connection.object_table[&id].address, connection.object_table[&id].size)
+fn read_object_impl(connection: &ConnectionState, id: u8) -> Result<Vec<u8>, String> {
+    if connection.object_table.contains_key(&id) {
+        return read_data(connection, connection.object_table[&id].address, connection.object_table[&id].size);
+    }
+    Err(format!("Object {} not found", id))
 }
 
-fn write_object(connection: &ConnectionState, id: u8, data: &[u8]) -> Result<(), String> {
-    write_data(connection, connection.object_table[&id].address, data)
+fn write_object_impl(connection: &ConnectionState, id: u8, data: &[u8]) -> Result<(), String> {
+    if connection.object_table.contains_key(&id) {
+        return write_data(connection, connection.object_table[&id].address, data);
+    }
+    Err(format!("Object {} not found", id))
+}
+
+#[tauri::command]
+fn read_object(connection_state: State<Mutex<ConnectionState>>, id: u8) -> Result<String, String> {
+    let connection = connection_state.lock();
+    let data = read_object_impl(&connection, id)?;
+    match id {
+        7 => {
+            let t7 = T7PowerConfig::ref_from_prefix(&data).expect("Could not create T7PowerConfig");
+            let json_str = serde_json::to_string(&t7).expect("Could not serialize T7PowerConfig");
+            return Ok(json_str);
+        }
+        8 => {
+            let t8 = T8AcquisitionConfig::ref_from_prefix(&data).expect("Could not create T8AcquisitionConfig");
+            let json_str = serde_json::to_string(&t8).expect("Could not serialize T8AcquisitionConfig");
+            return Ok(json_str);
+        }
+        42 => {
+            let t42 = T42TouchSupression::ref_from_prefix(&data).expect("Could not create T42TouchSupression");
+            let json_str = serde_json::to_string(&t42).expect("Could not serialize T42TouchSupression");
+            return Ok(json_str);
+        }
+        46 => {
+            let t46 = T46CteConfig::ref_from_prefix(&data).expect("Could not create T46CteConfig");
+            let json_str = serde_json::to_string(&t46).expect("Could not serialize T46CteConfig");
+            return Ok(json_str);
+        }
+        47 => {
+            let t47 = T47ProciStylus::ref_from_prefix(&data).expect("Could not create T47ProciStylus");
+            let json_str = serde_json::to_string(&t47).expect("Could not serialize T47ProciStylus");
+            return Ok(json_str);
+        }
+        80 => {
+            let t80 = T80RetransmissionCompensation::ref_from_prefix(&data).expect("Could not create T80RetransmissionCompensation");
+            let json_str = serde_json::to_string(&t80).expect("Could not serialize T80RetransmissionCompensation");
+            return Ok(json_str);
+        }
+        100 => {
+            let t100 = T100MultipleTouchTouchscreen::ref_from_prefix(&data).expect("Could not create T100MultipleTouchTouchscreen");
+            let json_str = serde_json::to_string(&t100).expect("Could not serialize T100MultipleTouchTouchscreen");
+            return Ok(json_str);
+        }
+        _ => {
+            return Err(format!("Object type {} is not serializable", id))
+        }
+    }
+}
+
+#[tauri::command]
+fn write_register(connection_state: State<Mutex<ConnectionState>>, id: u8, offset: u8, data: Vec<u8>) -> Result<(), String> {
+    let connection = connection_state.lock();
+    if offset + data.len() as u8 >= connection.object_table[&id].size {
+        return Err(format!("Attempt to write off the end of object {}.", id));
+    }
+    write_data(&connection, connection.object_table[&id].address + offset as u16, &data)
 }
 
 #[tauri::command]
@@ -170,7 +234,7 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
 
     let mut t6: T6CommandProcessor = FromZeroes::new_zeroed();
     t6.diagnostic = mode;
-    write_object(&connection, 6, t6.as_bytes())?;
+    write_object_impl(&connection, 6, t6.as_bytes())?;
     t6.diagnostic = 1; // Next page
 
     let sensor_nodes = connection.sensor_size[0] as u16 * connection.sensor_size[1] as u16;
@@ -178,13 +242,13 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
     let mut min_sample = i16::MAX;
     let mut max_sample = i16::MIN;
     for page in 0..pages {
-        let mut data = read_object(&connection, 37)?;
+        let mut data = read_object_impl(&connection, 37)?;
         if data[0] != 37 && data[1] != page {
             // Retry if the page hasnt updated
-            data = read_object(&connection, 37)?;
+            data = read_object_impl(&connection, 37)?;
         }
         if page != pages - 1 {
-            write_object(&connection, 6, t6.as_bytes())?;
+            write_object_impl(&connection, 6, t6.as_bytes())?;
         }
         for index in (0..128).step_by(2) {
             let full_index = ((page as u32 * 128) + index) / 2;
@@ -196,7 +260,7 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
                 min_sample = cmp::min(min_sample, sample);
                 max_sample = cmp::max(max_sample, sample);
 
-                let mut normalized_sample : f32;
+                let normalized_sample : f32;
                 if low < 0 {
                     // If the low-high range goes negative, generate a normalized
                     // value in the range -1..1.
@@ -225,7 +289,8 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
     }
     if max_sample > high {
         println!("Sample was out of range {} > {}", max_sample, high); 
-    }*/
+    }
+    println!("Sample range {} .. {}", min_sample, max_sample);*/
 
     let encoder = PngEncoder::new(&mut encoded_image);
     encoder
@@ -311,7 +376,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(Mutex::new(ConnectionState::default()))
-        .invoke_handler(tauri::generate_handler![connect, get_debug_image])
+        .invoke_handler(tauri::generate_handler![connect, get_debug_image, write_register, read_object])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

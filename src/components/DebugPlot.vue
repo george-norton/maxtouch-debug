@@ -29,12 +29,12 @@
         if (debug_mode == 17) {
           // The 1066 and 336 sensors have different signal limit ranges.
           if (info_block.value.family_id === 164) {
-            low_limit = 23500;
-            high_limit = 26000;
+            low_limit = 17500;
+            high_limit = 31000;
           }
           else {
-            low_limit = 6800;
-            high_limit = 10200;
+            low_limit = 1200;
+            high_limit = 14600;
           }
         }
         (invoke("get_debug_image", { mode: debug_mode, low: low_limit, high: high_limit }) as Promise<ArrayBuffer>)
@@ -66,7 +66,7 @@
       // If we failed to connect, try again in 1 second
       setTimeout(connect, 1000);
     });
-  } 
+  }
 
 </script>
 

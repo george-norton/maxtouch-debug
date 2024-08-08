@@ -9,7 +9,7 @@ import RegisterMap from "./components/RegisterMap.vue";
         <SplitterPanel class="flex items-center justify-center" :size="75">
           <DebugPlot style="height: 100%;"/>
         </SplitterPanel>
-        <SplitterPanel class="flex items-center justify-center" :size="25">
+        <SplitterPanel class="flex items-center justify-center"  style="overflow: scroll;" :size="25">
           <RegisterMap />
         </SplitterPanel>
     </Splitter>
