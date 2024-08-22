@@ -45,6 +45,9 @@ pub struct ObjectDetails {
 pub struct ConnectionState {
     device: Option<HidDevice>,
     sensor_size: [u8; 2],
+    invert_x: bool,
+    invert_y: bool,
+    switch_xy: bool,
     object_table: HashMap<u8, ObjectDetails>,
 }
 
@@ -173,7 +176,7 @@ fn write_object_impl(connection: &ConnectionState, id: u8, data: &[u8]) -> Resul
 
 #[tauri::command]
 fn read_object(connection_state: State<Mutex<ConnectionState>>, id: u8) -> Result<String, String> {
-    let connection = connection_state.lock();
+    let mut connection = connection_state.lock();
     let data = read_object_impl(&connection, id)?;
     match id {
         7 => {
@@ -209,6 +212,10 @@ fn read_object(connection_state: State<Mutex<ConnectionState>>, id: u8) -> Resul
         100 => {
             let t100 = T100MultipleTouchTouchscreen::ref_from_prefix(&data).expect("Could not create T100MultipleTouchTouchscreen");
             let json_str = serde_json::to_string(&t100).expect("Could not serialize T100MultipleTouchTouchscreen");
+            connection.invert_x = (t100.cfg1 & 0x80) != 0;
+            connection.invert_y = (t100.cfg1 & 0x40) != 0;
+            connection.switch_xy = (t100.cfg1 & 0x20) != 0;
+            println!("Rotation information: Invert X {}, Invert Y {}, Switch XY {}, Sensor {}x{}", connection.invert_x, connection.invert_y, connection.switch_xy, connection.sensor_size[0], connection.sensor_size[1]);
             return Ok(json_str);
         }
         _ => {
@@ -229,7 +236,17 @@ fn write_register(connection_state: State<Mutex<ConnectionState>>, id: u8, offse
 #[tauri::command]
 fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, low: i16, high: i16) -> Result<Response, String> {
     let connection = connection_state.lock();
-    let mut img = RgbImage::new(connection.sensor_size[0] as u32, connection.sensor_size[1] as u32);
+    let width;
+    let height;
+    if connection.switch_xy {
+        width = connection.sensor_size[1] as u32;
+        height = connection.sensor_size[0] as u32;
+    }
+    else {
+        width = connection.sensor_size[0] as u32;
+        height = connection.sensor_size[1] as u32;
+    }
+    let mut img = RgbImage::new(width, height);
     let mut encoded_image = Vec::new();
 
     let mut t6: T6CommandProcessor = FromZeroes::new_zeroed();
@@ -253,8 +270,19 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
         for index in (0..128).step_by(2) {
             let full_index = ((page as u32 * 128) + index) / 2;
             if full_index < sensor_nodes as u32 {
-                let x = full_index / (connection.sensor_size[1] as u32);
-                let y = full_index % (connection.sensor_size[1] as u32);
+                let mut x = full_index / (connection.sensor_size[1] as u32);
+                let mut y = full_index % (connection.sensor_size[1] as u32);
+                if connection.invert_x {
+                    x = width - x - 1;
+                }
+                if connection.invert_y {
+                    y = height - y - 1;
+                }
+                if connection.switch_xy {
+                    let tmp = x;
+                    x = y;
+                    y = tmp;
+                }
 
                 let sample = i16::from_le_bytes(data[(index + 2) as usize .. (index + 4) as usize].try_into().unwrap());
                 min_sample = cmp::min(min_sample, sample);
@@ -294,7 +322,7 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
 
     let encoder = PngEncoder::new(&mut encoded_image);
     encoder
-        .write_image(&img, connection.sensor_size[0] as u32, connection.sensor_size[1] as u32, image::ExtendedColorType::Rgb8)
+        .write_image(&img, width, height, image::ExtendedColorType::Rgb8)
         .unwrap();
     Ok(Response::new(encoded_image))
 }
