@@ -8,6 +8,8 @@ import Checkbox from "primevue/checkbox";
 import Splitter from "primevue/splitter";
 import SplitterPanel from "primevue/splitterpanel";
 import Select from "primevue/select";
+import ToggleButton from "primevue/togglebutton";
+
 import Aura from "@primevue/themes/aura";
 
 const app = createApp(App);
@@ -23,4 +25,5 @@ app.component('Checkbox', Checkbox);
 app.component('Splitter', Splitter);
 app.component('SplitterPanel', SplitterPanel);
 app.component('Select', Select);
+app.component('ToggleButton', ToggleButton);
 app.mount("#app");

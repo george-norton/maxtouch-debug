@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, onMounted, onBeforeUnmount } from "vue";
+  import { ref, onMounted, onBeforeUnmount, watch } from "vue";
   import { invoke } from "@tauri-apps/api/core";
   const timer = ref();
   const modes = ref([{ name: "Mutual Capacitance Delta Values", value: 16 },
@@ -7,9 +7,14 @@
   const mode = ref(modes.value[0]);
   const connected = ref(false);
   const info_block = ref();
+  const mouse_mode = ref(false);
 
   onMounted(() => {
     connect();
+
+    watch(mouse_mode, (enabled) => {
+      invoke("set_mouse_mode", { enable: enabled });
+    });
   })
 
   onBeforeUnmount(() => {
@@ -22,6 +27,9 @@
     invoke("connect").then((info) => {
       connected.value = true;
       info_block.value = info;
+      (invoke("get_mouse_mode") as Promise<boolean>).then((enabled) => {
+        mouse_mode.value = enabled;
+      });
       timer.value = setInterval(function () {
         const debug_mode = mode.value.value;
         var low_limit = -128;
@@ -84,6 +92,7 @@
       <div class="spacer" />
       <div class="toolbar">
         <Select v-model="mode" editable :options="modes" optionLabel="name" style="width: 250pt" />
+        <ToggleButton v-model="mouse_mode" onLabel="Force digitizer mode" offLabel="Force mouse mode" />
       </div>
     </div>
   </div>

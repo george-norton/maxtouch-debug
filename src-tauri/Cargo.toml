@@ -1,6 +1,6 @@
 [package]
 name = "maxtouch-debug"
-version = "0.0.2"
+version = "0.0.3"
 description = "A tool for debugging/tuning QMK trackpads with MaxTouch sensors."
 authors = ["George Norton"]
 edition = "2021"

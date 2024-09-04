@@ -29,9 +29,16 @@ enum MaxTouchStatus {
 #[repr(u8)]
 enum MaxTouchCommand {
     CheckVersion = 0,
-    Bootloader,
+    Command,
     Read,
     Write,
+}
+
+#[repr(u8)]
+enum MaxTouchCommandType {
+    RebootBootloader = 0,
+    SetMouseMode,
+    GetMouseMode
 }
 
 #[derive(Debug)]
@@ -255,6 +262,7 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
     t6.diagnostic = 1; // Next page
 
     let sensor_nodes = connection.sensor_size[0] as u16 * connection.sensor_size[1] as u16;
+
     let pages = ((sensor_nodes * 2) as f32 / 128.0).ceil() as u8;
     let mut min_sample = i16::MAX;
     let mut max_sample = i16::MIN;
@@ -399,12 +407,93 @@ fn connect(connection_state: State<Mutex<ConnectionState>>) -> Result<Informatio
     }
 }
 
+#[tauri::command]
+fn reboot_bootloader(connection_state: State<Mutex<ConnectionState>>) -> Result<(), String> {
+    let connection = connection_state.lock();
+    match &connection.device {
+        Some(device) => {
+            let mut packet : [u8; REPORT_LENGTH] = [0; REPORT_LENGTH];
+            packet[1] = MaxTouchCommand::Command as u8;
+            packet[2] = MaxTouchCommandType::RebootBootloader as u8;
+            match device.write(&packet) {
+                Ok(_) => return Ok(()),
+                Err(_) => { return Err(format!("Failed to write to the device.")); }
+            }
+            // Dont expect a response, the device has rebooted
+        }
+        _ => {
+            return Err(format!("Not connected."));
+        }
+    }
+}
+
+#[tauri::command]
+fn set_mouse_mode(connection_state: State<Mutex<ConnectionState>>, enable: bool) -> Result<(), String> {
+    let connection = connection_state.lock();
+    match &connection.device {
+        Some(device) => {
+            let mut packet : [u8; REPORT_LENGTH] = [0; REPORT_LENGTH];
+            packet[1] = MaxTouchCommand::Command as u8;
+            packet[2] = MaxTouchCommandType::SetMouseMode as u8;
+            packet[3] = enable as u8;
+            match device.write(&packet) {
+                Ok(_) => {},
+                Err(_) => return Err(format!("Failed to write to the device."))
+            }
+            match device.read_timeout(&mut packet, 1000) {
+                Ok(size) => {
+                    if size > 0 && packet[0] == MaxTouchStatus::OK as u8 {
+                        return Ok(());
+                    }
+                    return Err(format!("Failed to set mouse mode. Error {}", packet[0]));
+                }
+                Err(e) => {
+                    return Err(format!("Read returned error {}", e));
+                }
+            }
+        }
+        _ => {
+            return Err(format!("Not connected."));
+        }
+    }
+}
+
+#[tauri::command]
+fn get_mouse_mode(connection_state: State<Mutex<ConnectionState>>) -> Result<(bool), String> {
+    let connection = connection_state.lock();
+    match &connection.device {
+        Some(device) => {
+            let mut packet : [u8; REPORT_LENGTH] = [0; REPORT_LENGTH];
+            packet[1] = MaxTouchCommand::Command as u8;
+            packet[2] = MaxTouchCommandType::GetMouseMode as u8;
+            match device.write(&packet) {
+                Ok(_) => {},
+                Err(_) => return Err(format!("Failed to write to the device."))
+            }
+            match device.read_timeout(&mut packet, 1000) {
+                Ok(size) => {
+                    if size > 0 && packet[0] == MaxTouchStatus::OK as u8 {
+                        return Ok(packet[1] != 0);
+                    }
+                    return Err(format!("Failed to get mouse mode. Error {}", packet[0]));
+                }
+                Err(e) => {
+                    return Err(format!("Read returned error {}", e));
+                }
+            }
+        }
+        _ => {
+            return Err(format!("Not connected."));
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(Mutex::new(ConnectionState::default()))
-        .invoke_handler(tauri::generate_handler![connect, get_debug_image, write_register, read_object])
+        .invoke_handler(tauri::generate_handler![connect, get_debug_image, write_register, read_object, reboot_bootloader, set_mouse_mode, get_mouse_mode])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
