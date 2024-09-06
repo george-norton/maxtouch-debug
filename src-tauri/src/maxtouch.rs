@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use zerocopy::{FromBytes, FromZeroes, AsBytes};
+use serde_big_array::BigArray;
 
 #[repr(C, packed)]
 #[derive(FromBytes, FromZeroes, Serialize, Deserialize, Debug, Clone)]
@@ -144,6 +145,40 @@ pub struct T47ProciStylus {
     pub satbdxxlo : u8,
     pub satbdxxhi : u8,
     pub movhistcfg : u8,
+}
+
+#[repr(C, packed)]
+#[derive(FromBytes, FromZeroes, AsBytes, Serialize, Deserialize, Debug, Clone)]
+pub struct T56Shieldless {
+	pub ctrl : u8,
+	pub reserved : u8,
+	pub optint : u8,
+	pub inttime : u8,
+    #[serde(with = "BigArray")]
+	pub intdelay : [u8; 41],
+    // TODO: Variable sized array - depends on the number of transmit pins..
+}
+
+#[repr(C, packed)]
+#[derive(FromBytes, FromZeroes, AsBytes, Serialize, Deserialize, Debug, Clone)]
+pub struct T65LensBending {
+    pub ctrl : u8,
+    pub gradthr : u8,
+    pub ylonoisemul : u16,
+    pub ylonoisediv : u16,
+    pub yhinoisemul : u16,
+    pub yhinoisediv : u16,
+    pub lpfiltcoef : u8,
+    pub forcescale : u16,
+    pub forcethr : u8,
+    pub forcethrhyst : u8,
+    pub forcedi : u8,
+    pub forcehyst : u8,
+    pub atchratio : u8,
+    pub reserved : [u8; 2],
+    pub exfrcthr : u8,
+    pub exfrcthrhyst : u8,
+    pub exfrcto : u8,
 }
 
 #[repr(C, packed)]

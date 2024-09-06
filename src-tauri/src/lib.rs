@@ -2,7 +2,8 @@ extern crate hidapi;
 use hidapi::{HidApi, HidDevice};
 use maxtouch::{InformationBlock, ObjectTableElement, T6CommandProcessor,
     T7PowerConfig, T8AcquisitionConfig, T42TouchSupression, T46CteConfig,
-    T47ProciStylus, T80RetransmissionCompensation, T100MultipleTouchTouchscreen};
+    T47ProciStylus, T56Shieldless, T65LensBending, T80RetransmissionCompensation,
+    T100MultipleTouchTouchscreen};
 use parking_lot::Mutex;
 use std::{cmp, mem};
 use std::collections::HashMap;
@@ -209,6 +210,19 @@ fn read_object(connection_state: State<Mutex<ConnectionState>>, id: u8) -> Resul
         47 => {
             let t47 = T47ProciStylus::ref_from_prefix(&data).expect("Could not create T47ProciStylus");
             let json_str = serde_json::to_string(&t47).expect("Could not serialize T47ProciStylus");
+            return Ok(json_str);
+        }
+        56 => {
+            // This object is variable length, for now pad it up to the object size for the 1066 IC.
+            let mut data_padded = Vec::from(data);
+            data_padded.resize(mem::size_of::<T56Shieldless>(), 0);
+            let t56 = T56Shieldless::ref_from_prefix(&data_padded).expect("Could not create T56Shieldless");
+            let json_str = serde_json::to_string(&t56).expect("Could not serialize T56Shieldless");
+            return Ok(json_str);
+        }
+        65 => {
+            let t65 = T65LensBending::ref_from_prefix(&data).expect("Could not create T65LensBending");
+            let json_str = serde_json::to_string(&t65).expect("Could not serialize T65LensBending");
             return Ok(json_str);
         }
         80 => {

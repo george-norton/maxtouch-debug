@@ -40,19 +40,19 @@ const T8Offsets : { [key: string] : number } = {
 
 const T42Offsets : { [key: string] : number } = {
     ctrl : 0,
-    reserved : 0,
-    maxapprarea : 0,
-    maxtcharea : 0,
-    supstrength : 0,
-    supextto : 0,
-    maxnumtchs : 0,
-    shapestrength : 0,
-    supdist : 0,
-    disthyst : 0,
-    maxscrnarea : 0,
-    cfg : 0,
-    reserved2 : 0,
-    edgesupstrength : 0
+    reserved : -1,
+    maxapprarea : 2,
+    maxtcharea : 3,
+    supstrength : 4,
+    supextto : 5,
+    maxnumtchs : 6,
+    shapestrength : 7,
+    supdist : 8,
+    disthyst : 9,
+    maxscrnarea : 10,
+    cfg : 11,
+    reserved2 : -1,
+    edgesupstrength : 13
 };
 
 const T46Offsets : { [key: string] : number } = {
@@ -112,6 +112,34 @@ const T47Offsets : { [key: string] : number } = {
     satbdxxlo : 44,
     satbdxxhi : 45,
     movhistcfg : 46,
+}
+
+const T56Offsets : { [key: string] : number } = {
+    ctrl: 0,
+    reserved: -1,
+    optint: 2,
+    inttime: 3,
+    intdelay : -1
+}
+
+const T65Offsets : { [key: string] : number } = {
+    ctrl : 0,
+    gradthr : 1, 
+    ylonoisemul : -1,
+    ylonoisediv : -1,
+    yhinoisemul : -1,
+    yhinoisediv : -1,
+    lpfiltcoef : 10,
+    forcescale : -1,
+    forcethr : 13,
+    forcethrhyst : 14,
+    forcedi : 15,
+    forcehyst : 16,
+    atchratio : 17,
+    reserved : -1,
+    exfrcthr : 20,
+    exfrcthrhyst : 21,
+    exfrcto : 22
 }
 
 const T80Offsets : { [key: string] : number } = {
@@ -234,6 +262,8 @@ export const NodeService = {
         readObject(42, 'T42 Touch Suppression', T42Offsets);
         readObject(46, 'T46 CTE Config', T46Offsets);
         readObject(47, 'T47 Passive Stylus Config', T47Offsets);
+        readObject(56, 'T56 Shieldless Config', T56Offsets);
+        readObject(65, 'T65 Lens Bending Config', T65Offsets);
         readObject(80, 'T80 Retransmission Compensation', T80Offsets);
         readObject(100, 'T100 Multiple Touch Touchscreen', T100Offsets);
     },
