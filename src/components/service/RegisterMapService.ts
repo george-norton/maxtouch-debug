@@ -38,6 +38,27 @@ const T8Offsets : { [key: string] : number } = {
     cfg : 14
 };
 
+const T25Offsets : { [key: string] : number } = {
+    ctrl : 0,
+    cmd : 1,
+    upsiglim_lsb : 2,
+    upsiglim_msb : 3,
+    losiglim_lsb : 4,
+    losiglim_msb : 5,
+    pindwellus : 6,
+    sigrangelim_lsb : 7,
+    sigrangelim_msb : 8,
+    pinthr : 9,
+    pertstinterval : 10,
+    pertstholdoff : 11,
+    pertstrptfactor : 12,
+    pertstrtpwidth : 13,
+    pertstcfg : 14,
+    semeasen : 15,
+    segain : 16,
+    sedxgain : 17
+};
+
 const T42Offsets : { [key: string] : number } = {
     ctrl : 0,
     reserved : -1,
@@ -259,6 +280,7 @@ export const NodeService = {
         registers.value = [];
         readObject(7, 'T7 General Power Config', T7Offsets);
         readObject(8, 'T8 Acquisition Config', T8Offsets);
+        readObject(25, 'T25 Self Test', T25Offsets);
         readObject(42, 'T42 Touch Suppression', T42Offsets);
         readObject(46, 'T46 CTE Config', T46Offsets);
         readObject(47, 'T47 Passive Stylus Config', T47Offsets);

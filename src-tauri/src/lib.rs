@@ -1,7 +1,7 @@
 extern crate hidapi;
 use hidapi::{HidApi, HidDevice};
 use maxtouch::{InformationBlock, ObjectTableElement, T6CommandProcessor,
-    T7PowerConfig, T8AcquisitionConfig, T42TouchSupression, T46CteConfig,
+    T7PowerConfig, T8AcquisitionConfig, T25SelfTest, T42TouchSupression, T46CteConfig,
     T47ProciStylus, T56Shieldless, T65LensBending, T80RetransmissionCompensation,
     T100MultipleTouchTouchscreen};
 use parking_lot::Mutex;
@@ -197,6 +197,11 @@ fn read_object(connection_state: State<Mutex<ConnectionState>>, id: u8) -> Resul
             let json_str = serde_json::to_string(&t8).expect("Could not serialize T8AcquisitionConfig");
             return Ok(json_str);
         }
+        25 => {
+            let t25 = T25SelfTest::ref_from_prefix(&data).expect("Could not create T25SelfTest");
+            let json_str = serde_json::to_string(&t25).expect("Could not serialize T25SelfTest");
+            return Ok(json_str);
+        }
         42 => {
             let t42 = T42TouchSupression::ref_from_prefix(&data).expect("Could not create T42TouchSupression");
             let json_str = serde_json::to_string(&t42).expect("Could not serialize T42TouchSupression");
@@ -332,9 +337,10 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
             }
         }
     }
+    /*
     // TODO: I would like to display this in the UI, but how do we return
     // an image and some json?
-    /*if min_sample < low {
+    if min_sample < low {
         println!("Sample was out of range {} < {}", min_sample, low); 
     }
     if max_sample > high {
@@ -401,7 +407,7 @@ fn connect(connection_state: State<Mutex<ConnectionState>>) -> Result<Informatio
                                     },
                                 );
                             }
-                            // println!("{:?}", connection.object_table);
+                            println!("{:?}", connection.object_table);
                             return Ok(info.clone());
                         }
                         Err(e) => {

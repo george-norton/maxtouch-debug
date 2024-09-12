@@ -69,6 +69,30 @@ pub struct T8AcquisitionConfig {
 
 #[repr(C, packed)]
 #[derive(FromBytes, FromZeroes, AsBytes, Serialize, Deserialize, Debug, Clone)]
+pub struct T25SelfTest {
+    pub ctrl : u8,
+    pub cmd : u8,
+    pub upsiglim_lsb : u8,
+    pub upsiglim_msb : u8,
+    pub losiglim_lsb : u8,
+    pub losiglim_msb : u8,
+    pub pindwellus : u8,
+    pub sigrangelim_lsb : u8,
+    pub sigrangelim_msb : u8,
+    pub pinthr : u8,
+    pub pertstinterval : u8,
+    pub pertstholdoff : u8,
+    pub pertstrptfactor : u8,
+    pub pertstrtpwidth : u8,
+    pub pertstcfg : u8,
+    //pub sesiglimits : [u8; 3],
+    pub semeasen : u8,
+    pub segain : u8,
+    pub sedxgain : u8
+}
+
+#[repr(C, packed)]
+#[derive(FromBytes, FromZeroes, AsBytes, Serialize, Deserialize, Debug, Clone)]
 pub struct T42TouchSupression {
     pub ctrl : u8,
     pub reserved : u8,
