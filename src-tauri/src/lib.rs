@@ -316,6 +316,7 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
                 max_sample = cmp::max(max_sample, sample);
 
                 let normalized_sample : f32;
+                let overflow : bool = sample < low || sample > high;
                 if low < 0 {
                     // If the low-high range goes negative, generate a normalized
                     // value in the range -1..1.
@@ -326,13 +327,18 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
                     normalized_sample = ((sample - low) as f32 / (high - low) as f32).clamp(0.0, 1.0);
                 }
 
-                if normalized_sample < 0.0 {
-                    let value = 255 - (-255.0 * normalized_sample) as u8;
-                    img.put_pixel(x, y, Rgb([255, value, value]));
+                if (overflow) {
+                    img.put_pixel(x, y, Rgb([255, 0, 255]));
                 }
                 else {
-                    let value = 255 - (255.0 * normalized_sample) as u8;
-                    img.put_pixel(x, y, Rgb([value, value, 255]));
+                    if normalized_sample < 0.0 {
+                        let value = 255 - (-255.0 * normalized_sample) as u8;
+                        img.put_pixel(x, y, Rgb([255, value, value]));
+                    }
+                    else {
+                        let value = 255 - (255.0 * normalized_sample) as u8;
+                        img.put_pixel(x, y, Rgb([value, value, 255]));
+                    }
                 }
             }
         }
