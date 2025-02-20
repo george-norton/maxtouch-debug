@@ -37,12 +37,12 @@
         if (debug_mode == 17) {
           // The 1066 and 336 sensors have different signal limit ranges.
           if (info_block.value.family_id === 164) {
-            low_limit = 17500;
-            high_limit = 31000;
+            low_limit = 0; //17500;
+            high_limit = 1024; //31000;
           }
           else {
-            low_limit = 1200;
-            high_limit = 14600;
+            low_limit = 0; //1200;
+            high_limit = 1024; //14600;
           }
         }
         (invoke("get_debug_image", { mode: debug_mode, low: low_limit, high: high_limit }) as Promise<ArrayBuffer>)
@@ -93,6 +93,7 @@
       <div class="toolbar">
         <Select v-model="mode" editable :options="modes" optionLabel="name" style="width: 250pt" />
         <ToggleButton v-model="mouse_mode" onLabel="Force digitizer mode" offLabel="Force mouse mode" />
+        <Button label="Reboot bootloader" severity="danger" v-on:click="invoke('reboot_bootloader');"/>
       </div>
     </div>
   </div>

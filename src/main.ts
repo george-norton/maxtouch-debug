@@ -9,6 +9,7 @@ import Splitter from "primevue/splitter";
 import SplitterPanel from "primevue/splitterpanel";
 import Select from "primevue/select";
 import ToggleButton from "primevue/togglebutton";
+import Button from "primevue/button";
 
 import Aura from "@primevue/themes/aura";
 
@@ -26,4 +27,5 @@ app.component('Splitter', Splitter);
 app.component('SplitterPanel', SplitterPanel);
 app.component('Select', Select);
 app.component('ToggleButton', ToggleButton);
+app.component('Button', Button);
 app.mount("#app");

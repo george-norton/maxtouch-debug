@@ -187,6 +187,11 @@ fn read_object(connection_state: State<Mutex<ConnectionState>>, id: u8) -> Resul
     let mut connection = connection_state.lock();
     let data = read_object_impl(&connection, id)?;
     match id {
+        6 => {
+            let t6 = T6CommandProcessor::ref_from_prefix(&data).expect("Could not create T6CommandProcessor");
+            let json_str = serde_json::to_string(&t6).expect("Could not serialize T6CommandProcessor");
+            return Ok(json_str);
+        }
         7 => {
             let t7 = T7PowerConfig::ref_from_prefix(&data).expect("Could not create T7PowerConfig");
             let json_str = serde_json::to_string(&t7).expect("Could not serialize T7PowerConfig");
@@ -300,10 +305,10 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
                 let mut x = full_index / (connection.sensor_size[1] as u32);
                 let mut y = full_index % (connection.sensor_size[1] as u32);
                 if connection.invert_x {
-                    x = width - x - 1;
+                    x = connection.sensor_size[0] as u32 - x - 1;
                 }
                 if connection.invert_y {
-                    y = height - y - 1;
+                    y = connection.sensor_size[1] as u32 - y - 1;
                 }
                 if connection.switch_xy {
                     let tmp = x;
@@ -369,9 +374,7 @@ fn connect(connection_state: State<Mutex<ConnectionState>>) -> Result<Informatio
     match HidApi::new() {
         Ok(api) => {
             for device in api.device_list() {
-                if device.vendor_id() == VENDOR_ID
-                    && device.product_id() == PRODUCT_ID
-                    && device.usage() == USAGE
+                if  device.usage() == USAGE
                     && device.usage_page() == USAGE_PAGE
                 {
                     println!(

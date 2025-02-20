@@ -12,6 +12,16 @@ interface MapNode {
 }
 const registers = ref<MapNode[]>([]);
 
+const T6Offsets : { [key: string] : number } = {
+    reset : 0,
+    backupnv : 1,
+    calibrate : 2,
+    reportall : 3,
+    debugctrl : 4,
+    diagnostic : 5,
+    debugctrl2 : 6
+};
+
 const T7Offsets : { [key: string] : number } = {
     idleacqint : 0,
     actacqint : 1,
@@ -278,6 +288,7 @@ function readObject(id : number, name : string, offsets : { [key: string] : numb
 export const NodeService = {
     update() {
         registers.value = [];
+        readObject(6, 'T6 Command Processor', T6Offsets);
         readObject(7, 'T7 General Power Config', T7Offsets);
         readObject(8, 'T8 Acquisition Config', T8Offsets);
         readObject(25, 'T25 Self Test', T25Offsets);
