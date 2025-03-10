@@ -12,11 +12,12 @@ use tauri::State;
 use zerocopy::{FromBytes, FromZeroes, AsBytes};
 use tauri::ipc::Response;
 use image::{codecs::png::PngEncoder, Rgb, RgbImage, ImageEncoder};
-use serde::{Deserialize, Serialize};
 
 mod maxtouch;
 
+#[allow(dead_code)]
 const VENDOR_ID: u16 = 0xFEED;
+#[allow(dead_code)]
 const PRODUCT_ID: u16 = 0x0000;
 const USAGE_PAGE: u16 = 0xFF60;
 const USAGE: u16 = 0x61;
@@ -46,6 +47,7 @@ enum MaxTouchCommandType {
 pub struct ObjectDetails {
     address: u16,
     size: u8,
+	#[allow(dead_code)]
     instances: u8,
 }
 
@@ -332,7 +334,7 @@ fn get_debug_image(connection_state: State<Mutex<ConnectionState>>, mode: u8, lo
                     normalized_sample = ((sample - low) as f32 / (high - low) as f32).clamp(0.0, 1.0);
                 }
 
-                if (overflow) {
+                if overflow {
                     img.put_pixel(x, y, Rgb([255, 0, 255]));
                 }
                 else {
@@ -488,7 +490,7 @@ fn set_mouse_mode(connection_state: State<Mutex<ConnectionState>>, enable: bool)
 }
 
 #[tauri::command]
-fn get_mouse_mode(connection_state: State<Mutex<ConnectionState>>) -> Result<(bool), String> {
+fn get_mouse_mode(connection_state: State<Mutex<ConnectionState>>) -> Result<bool, String> {
     let connection = connection_state.lock();
     match &connection.device {
         Some(device) => {
