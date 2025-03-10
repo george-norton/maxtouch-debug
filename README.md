@@ -10,5 +10,3 @@ Please refer the the [Tauri Prerequisites](https://tauri.app/start/prerequisites
 To build this project run the `npm run tauri build` command.
 For development, similarly run the `npm run tauri dev` command.
 
-
-
