@@ -387,7 +387,10 @@ fn connect(connection_state: State<Mutex<ConnectionState>>) -> Result<Informatio
                     match device.open_device(&api) {
                         Ok(device) => {
                             connection.device = Some(device);
-                            check_version(&connection).expect("Version Check Failed");
+                            match check_version(&connection) {
+                                Err(e) => { println!("{:?}", e); continue; },
+                                Ok(_) => {},
+                            }
                             let data =
                                 read_data(&connection, 0, mem::size_of::<InformationBlock>() as u8)
                                     .expect("Failed to read info block.");
